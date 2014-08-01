@@ -10,8 +10,9 @@ SendMode Input
 SetWorkingDir %A_ScriptDir%
 FileCreateDir, %A_ScriptDir%\Data\
 DataBaseFile = %A_ScriptDir%\Data\LHCP_DataBase.ini
-VERSIONNAME = v0.6
+VERSIONNAME = v0.7
 Fn_InstalledFiles()
+
 
 ;/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\
 ;StartUp
@@ -510,9 +511,9 @@ Leeroy_Dir = %WoW_Dir%\Interface\AddOns\LeeroyHillCatsPower
 
 Fn_InstalledFiles()
 {
-FileInstall, C:\Users\Chunjee\Dropbox\Tools\AutoHotKey\Personal\WoW\LHCP\Data\LHCP-X.png, %A_ScriptDir%\Data\LHCP-X.png, 1
-FileInstall, C:\Users\Chunjee\Dropbox\Tools\AutoHotKey\Personal\WoW\LHCP\Data\dependencies.ini, %A_ScriptDir%\Data\dependencies.ini, 1
-FileInstall, C:\Users\Chunjee\Dropbox\Tools\AutoHotKey\Personal\WoW\LHCP\LHCP-X README.txt, %A_ScriptDir%\LHCP-X ReadMe.txt, 1
+FileInstall, Data\LHCP-X.png, %A_ScriptDir%\Data\LHCP-X.png, 1
+FileInstall, Data\dependencies.ini, %A_ScriptDir%\Data\dependencies.ini, 1
+FileInstall, LHCP-X README.txt, %A_ScriptDir%\LHCP-X ReadMe.txt, 1
 }
 
 
