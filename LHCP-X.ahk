@@ -13,9 +13,9 @@
 #NoTrayIcon
 #SingleInstance, Off
 
-VERSIONNAME = v0.0
+The_Version = v0.1
 Startup()
-;Sb_InstalledFiles()
+Sb_InstalledFiles()
 
 
 ;Dependencies
@@ -171,8 +171,10 @@ GuiControl,, ProgressBar1, 1
 	vProgressBar := 100 * (TotalDownloaded / Txt_Array.MaxIndex())
 	GuiControl,, ProgressBar1, %vProgressBar%
 	}
-GuiControl,, ProgressBar1, 100
+;DONE - Generate new DB and set progressbar to 0
 LHCP_Array := Fn_GenerateDB()
+GuiControl,, ProgressBar1, 0
+
 
 ;DEPRECIATED - Ask user if the want to delete any unofficial files
 ;;;MessageWindow()
@@ -569,7 +571,7 @@ Gui, Add, Button, x292 y30 w100 h30 gAutoUpdate, Auto-Update
 ;Gui, Add, CheckBox, x333 y10 w100 h20 Checked1 gSwitchOnOff, On
 Gui, Add, Picture, x2 y10 w290 h56 , %A_ScriptDir%\Data\LHCP-X.png
 Gui, Add, Text, x82 y90 w160 h20 , Chunjee - DownloadMob.com
-Gui, Add, Text, x2 y90, %VERSIONNAME%
+Gui, Add, Text, x2 y90, %The_Version%
 Gui, Add, Progress, cBlack x6 y70 w270 h10 vProgressBar1, 100
 ; Generated using SmartGUI Creator 4.0
 Gui, Show, x375 y140 h107 w400, LHCP-X
@@ -866,7 +868,7 @@ Fn_DownloadToFile(url, filename)
 
 
 
-VERSIONNAME = v0.0
+
 Startup()
 {
 SetBatchLines -1 ;Go as fast as CPU will allow
@@ -904,4 +906,13 @@ Ini_Reads(FileName)
 			Section[Match1] := Match2
 	}
 	return Out
+}
+
+
+Sb_InstalledFiles()
+{
+
+
+
+
 }
