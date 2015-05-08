@@ -9,10 +9,7 @@
 ;~~~~~~~~~~~~~~~~~~~~~
 ;Compile Options
 ;~~~~~~~~~~~~~~~~~~~~~
-#NoEnv ;performance and compatibility
-#NoTrayIcon
-#SingleInstance, Off
-
+SetBatchLines -1 ;Go as fast as CPU will allow
 The_Version = v0.1
 Startup()
 Sb_InstalledFiles()
@@ -29,7 +26,7 @@ Sb_InstalledFiles()
 
 
 
-FileCreateDir, %A_ScriptDir%\Data\
+FileCreateDir, %A_ScriptDir%\Data\Files\
 DataBase_Loc = %A_ScriptDir%\Data\LHCP_DataBase.json
 
 
@@ -871,7 +868,6 @@ Fn_DownloadToFile(url, filename)
 
 Startup()
 {
-SetBatchLines -1 ;Go as fast as CPU will allow
 #NoEnv ;performance and compatibility
 #NoTrayIcon
 #SingleInstance Off
@@ -911,8 +907,8 @@ Ini_Reads(FileName)
 
 Sb_InstalledFiles()
 {
+;FileInstall, Source, Dest [, Overwrite = 1
+FileCreateDir, %A_ScriptDir%\Data\
 
-
-
-
+FileInstall, LHCP-X.png, %A_ScriptDir%\Data\LHXP-X.png, 1
 }
