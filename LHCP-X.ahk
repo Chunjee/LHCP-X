@@ -1,91 +1,181 @@
 ;/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\
-;Persistent
+; Description
 ;\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/
+; Expandable LHCP
+; Accepts any string as argument. Include a "||" in front of string to play any file that includes that string.
+; Returns full message of file being played.
 
-#NoEnv  ; Recommended for performance and compatibility
+
+;~~~~~~~~~~~~~~~~~~~~~
+;Compile Options
+;~~~~~~~~~~~~~~~~~~~~~
+#NoEnv ;performance and compatibility
 #NoTrayIcon
-#SingleInstance force
-;#include inireadwrite.ahk
-SendMode Input
-SetWorkingDir %A_ScriptDir%
+#SingleInstance, Off
+
+VERSIONNAME = v0.0
+Startup()
+;Sb_InstalledFiles()
+
+
+;Dependencies
+#Include %A_ScriptDir%\Functions
+#Include sort_arrays
+#Include util_arrays
+#Include util_misc
+#Include json_obj
+#Include Socket.ahk
+#Include Json.ahk
+
+
+
 FileCreateDir, %A_ScriptDir%\Data\
-DataBaseFile = %A_ScriptDir%\Data\LHCP_DataBase.ini
-VERSIONNAME = v0.7
-Fn_InstalledFiles()
+DataBase_Loc = %A_ScriptDir%\Data\LHCP_DataBase.json
+
+
+class IRC
+{
+	static _ := IRC := new IRC() ; Automatically initialize base object
+	__Call(Name, Params*)
+	{
+		TCP := new SocketTCP()
+		TCP.Connect("localhost", 26656)
+		TCP.SendText(Json_FromObj({MethodName: Name, Params: Params}))
+		return Json_ToObj(TCP.recvText()).return
+		return
+	}
+}
 
 
 ;/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\
 ;StartUp
 ;\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/
 
-;LHCP_Dir = C:\Program Files (x86)\World of Warcraft 1.12\Interface\AddOns\LHCP_Mudabu2
-IniRead, WoW_Dir, %A_ScriptFullPath%:Stream:$DATA, Settings, EmbVar,error
-Fn_BuildGUI()
-	
-	If (WoW_Dir="error")
-	{
-	Msgbox, Please Select your World of Warcraft Directory. You will only need to do this once.
-	FileSelectFolder, OutputVar, *%A_ProgramFiles%, , Select Your World of Warcraft folder
-	IniWrite, %OutputVar%, %A_ScriptFullPath%:Stream:$DATA, Settings, EmbVar
-	IniRead, WoW_Dir, %A_ScriptFullPath%:Stream:$DATA, Settings, EmbVar,error
+CLI_Arg = %1%
+	;Create GUI and offer updates if run with no cli-arguments
+	If (!CLI_Arg) {
+	Fn_BuildGUI()
+	Gui, +Enable
+	Fn_HardCodedGlobals()
+	Fn_LoadtoMemory(DataBaseFile)
+	Fn_GenerateDB()
+	Return
 	}
-	
-Gui, +Enable
-Fn_HardCodedGlobals()
-Fn_LoadtoMemory(DataBaseFile)
-Return
+
+	;launched with CLI argument
+	If (CLI_Arg) {
+		;Load pre-existing DataBase
+		If (FileExist(DataBase_Loc)) {
+		FileRead, MemoryFile, % DataBase_Loc
+		LHCP_Array := Fn_JSONtooOBJ(MemoryFile)
+		MemoryFile := ;BLANK
+		} Else {
+		LHCP_Array := Fn_GenerateDB()
+		}
+
+		SettingsFile := A_ScriptDir . "\Settings.ini"
+		Settings := Ini_Read(SettingsFile)
+
+		If (CLI_Arg = "jason") {
+		Fn_GenerateDB()
+		}
+		If (CLI_Arg = "stop") {
+			Loop, 10
+			{
+			Process, Close, LHCP-X.exe
+			}
+		Exitapp
+		}
+		If (InStr(CLI_Arg,"||")) {
+		ExitApp
+		Temp_Array := []
+		X = 0
+			Loop, LHCP_Array.MaxIndex() {
+				If(InStr(CLI_Arg,LHCP_Array[A_Index,"Phrase"])) {
+				X++
+				Temp_Array[]
+				}
+			}
+
+
+		} Else {
+			Loop, % LHCP_Array.MaxIndex() {
+				If(CLI_Arg = LHCP_Array[A_Index,"Command"]) {
+				;Chat(StrReplace(Settings.Server.LHCP_Channel, "#"), LHCP_Array[A_Index, "Phrase"])
+				SoundPlay, % LHCP_Array[A_Index,"FilePath"], 1
+				ExitApp
+				}
+			}
+		}
+	ExitApp
+	}
+
+
+
+
+
+;/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\
+; Buttons
+;\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/
 
 ^F7::
 Reload
-
-;/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\
-;Mains / Buttons
-;\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/
-
-
 
 ;~~~~~~~~~~~~~~~~~~~~~
 ;Download All Files, build new DB
 ;~~~~~~~~~~~~~~~~~~~~~
 AutoUpdate:
 
-;Download Master List
-FileDelete, %A_ScriptDir%\Data\LHCP_MasterList.ini
-sleep 100
-UrlDownloadToFile, https://dl.dropboxusercontent.com/u/268814505/LHCP/LHCP_MasterList.ini, %A_ScriptDir%\Data\LHCP_MasterList.ini
-MasterFile = %A_ScriptDir%\Data\LHCP_MasterList.ini
-Number_FilesGrabbed = 0
-
-;Download_To_File
-
-
-	IfNotInString, LHCP_Dir, Warcraft
-	{
-	Msgbox,
-	(
-Wait are you fucking sure!? This is going put a bunch of files in:
-"%LHCP_Dir%" which I understand as your LHCP Directory.
-	
-It doesn't even have to word "Warcraft" in there. Press OK if you are sure. Ctrl+F7 to cancel
-	)
-	}
-	
-;User confirmed selection. Create Dir
+;Create Dir
+LHCP_Dir = %A_ScriptDir%\Data\Files
 FileCreateDir, %LHCP_Dir%
-FileCreateDir, %WoW_Dir%\Interface\AddOns\LeeroyHillCatsPower
 
-;Check for LeeroyHillCatsPower Addon and add if missing
-Fn_AutoUpdate(DependenciesList,LeeroyHillsCatsPower,Leeroy_Dir)
 
-;Download all files in master list to LHCP_Dir
-Fn_AutoUpdate(MasterFile,LHCP,LHCP_Dir)
+;Download Master List and load to memory
+MasterFile_Loc = %A_ScriptDir%\Data\LHCP_MasterList.txt
+FileDelete, %MasterFile_Loc%
+sleep 100
+UrlDownloadToFile, https://dl.dropboxusercontent.com/u/268814505/LHCP/LHCP_MasterList.ini, %MasterFile_Loc%
+FileRead, The_MemoryFile, %MasterFile_Loc%
 
-;MessageWindow asks the user if they want to keep or delete extraneous clips
-;Options lead to DeleteUnofficial: and GenerateLUA:
-Gui, Destroy
+;Load into Array
+Txt_Array := StrSplit(The_MemoryFile,"`r`n")
 
-MessageWindow()
+;Set Progressbar to 0%
 
+
+TotalDownloaded = 0
+GuiControl,, ProgressBar1, 1
+	Loop, % Txt_Array.MaxIndex() {
+
+
+	FinalFileName := Txt_Array[A_Index]
+	DropboxURL := Txt_Array[A_Index]
+	StringReplace, DropboxURL, DropboxURL, %A_Space%, `%20, All
+	StringReplace, DropboxURL, DropboxURL, #, `%23, All
+	StringReplace, DropboxURL, DropboxURL, `,, `%2C, All
+	StringReplace, DropboxURL, DropboxURL, `^, `%5E, All
+	StringReplace, DropboxURL, DropboxURL, `%, `%, All
+	DropboxURL2 = https://dl.dropboxusercontent.com/u/268814505/LHCP/%DropboxURL%
+
+	CurrentFile := LHCP_Dir . "\" . FinalFileName
+	StringReplace, CurrentFile, CurrentFile, `n,, All
+	StringReplace, CurrentFile, CurrentFile, `r,, All
+		;Download if not in collection
+		If (!FileExist(CurrentFile)) {
+		UrlDownloadToFile, %DropboxURL2%, %CurrentFile%
+		TotalDownloaded ++
+		}
+
+
+	vProgressBar := 100 * (TotalDownloaded / Txt_Array.MaxIndex())
+	GuiControl,, ProgressBar1, %vProgressBar%
+	}
+GuiControl,, ProgressBar1, 100
+LHCP_Array := Fn_GenerateDB()
+
+;DEPRECIATED - Ask user if the want to delete any unofficial files
+;;;MessageWindow()
 Return
 
 
@@ -101,20 +191,20 @@ Fn_BuildGUI()
 	DELETETHISFILE = 1
 		Loop, read, %MasterFile%
 		{
-		
+
 			If CurrentFileName = %A_LoopReadLine%
 			{
 			DELETETHISFILE += 1
 			}
 		}
-		
+
 		If (DELETETHISFILE = 1)
 		{
 		;Msgbox, %CurrentFileName% Marked for deletion.
 		DeletedFiles_Counter += 1
 		FileDelete, %LHCP_Dir%\%CurrentFileName%
 		}
-		
+
 	}
 	Fn_EmbeddedLUAMaker()
 	Fn_CatalogueFiles()
@@ -213,69 +303,26 @@ Return
 ; FUNCTIONS
 ;\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/
 
-
-Fn_AutoUpdate(DownloadList,DropBoxFolder,Path)
+Fn_GenerateDB()
 {
-global
+TempArray := []
 
-FileCreateDir, %A_ScriptDir%\Data
-;Read Master List line by line
-	Loop, read, %DownloadList%
+	;Loop all mp3 files
+	Loop, %A_ScriptDir%\Data\Files\*.mp3 , 1
 	{
-	TotalTXTLines += 1
-	}
-	
-	Loop, read, %DownloadList%
-	{
-	DropboxURL = %A_LoopReadLine%
-	FinishedFileName = %A_LoopReadLine%
-	StringReplace, DropboxURL, DropboxURL, %A_Space%, `%20, All
-	StringReplace, DropboxURL, DropboxURL, #, `%23, All
-	StringReplace, DropboxURL, DropboxURL, `,, `%2C, All
-	StringReplace, DropboxURL, DropboxURL, `^, `%5E, All
-	StringReplace, DropboxURL, DropboxURL, `%, `%, All
-	
-	
-	;Dropbox URL is now complete after this next line
-	DropboxURL2 = https://dl.dropboxusercontent.com/u/268814505/LHCP/%DropBoxFolder%%DropboxURL%
-	
-	
-	
-	;filealf = %A_ScriptDir%\%FinishedFileName%
-	
-		IfNotExist, %Path%\%FinishedFileName%
-		{
-		;DEPRECIATED - Causes issue with downloaded file permissions, user cannot add comments
-		;UrlDownloadToFile, %DropboxURL%, %Path%\%FinishedFileName%
-		
-		UrlDownloadToFile, %DropboxURL2%, %A_ScriptDir%\Data\%FinishedFileName%
-		FileMove, %A_ScriptDir%\Data\%FinishedFileName%, %Path%\%FinishedFileName% , 1
-		Number_FilesGrabbed += 1
+	Command := Fn_QuickRegEx(A_LoopFileName,"([ !\w]+)#")
+	Phrase := Fn_QuickRegEx(A_LoopFileName,"#([ !\w]+)")
+		If (Command != "null" && Phrase != "null") {
+		TempArray[A_Index,"FilePath"] := A_LoopFileFullPath
+		TempArray[A_Index,"Command"] := Command
+		TempArray[A_Index,"Phrase"] := Phrase
 		}
-	
-	;SAVED
-	;UrlDownloadToFile, %DropboxURL%, %Path%\%FinishedFileName%
-	;Fn_DownloadToFile(DropboxURL, filealf)
-	
-	
-	;Download to Path
-	;Msgbox, %A_ScriptDir%, %Path%\%FinishedFileName%
-	;UrlDownloadToFile, %DropboxURL%, %Path%\%FinishedFileName%
-	
-	TotalInstalled += 1
-	vProgressBar := 100 * (TotalInstalled / TotalTXTLines)
-	GuiControl,, ProgressBar1, %vProgressBar%
 	}
-	GuiControl,, ProgressBar1, 0
-	
-;FileRemoveDir, %A_ScriptDir%\FilesDownloading , 1
-
-
-;file1 = betterrun#Faggot better run..mp3
-;file2 = https://dl.dropboxusercontent.com/u/268814505/betterrun`%23Faggot`%20better`%20run..mp3
-
-
-
+	;Write out the newley created Array and return it for the MAIN
+	;MemoryFile := Fn_JSONfromOBJ(TempArray)
+	FileDelete, %A_ScriptDir%\Data\LHCP_DataBase.json
+	FileAppend, % Fn_JSONfromOBJ(TempArray), %A_ScriptDir%\Data\LHCP_DataBase.json
+	Return % TempArray
 }
 
 
@@ -327,7 +374,7 @@ X = 0
 		;Msgbox, %field_array1% ~ %field_array2%
 		TempArray.Insert(field_array1)
 		}
-		
+
 	}
 	TotalSize := TempArray.MaxIndex() ;gets current size of temp array. This will eventually be 0 when it is empty
 	;msgbox, %TotalSize%
@@ -363,62 +410,62 @@ TotalFilesCompleted = 0
 	StringTrimRight, FileName, A_LoopFileName, 4 ;Cut off the .mp3 or .wav
 
 	;Set Array to Blank in case file is not formatted correctly.
-	LHCP_Array1 = 
-	LHCP_Array2 = 
-	
+	LHCP_Array1 =
+	LHCP_Array2 =
+
 	StringSplit, LHCP_Array, FileName, #, ;If # ever stops working, switch to %A_Tab%
 	StringReplace, LHCP_Array2, LHCP_Array2, `^, `?, All
-	
+
 	filepath = %LHCP_Dir%\%A_LoopFileName%
-	MP3Comments = 
+	MP3Comments =
 	Fn_id3read_length(filepath,object="msg")
 	MP3Comments = %Comments%
-	
+
 		{ ;Length Stuff in here
 		;Example length returns  "00:01:12"
 		;SoundLength_Array1 = ;hour
 		;SoundLength_Array2 = ;min
 		;SoundLength_Array3 = ;sec
 		StringSplit, SoundLength_Array, length, :, . ; Omits periods.   If # ever stops working, switch to %A_Tab%
-		
+
 		SoundLength_Array1 := SoundLength_Array1 * 3600
 		SoundLength_Array2  := SoundLength_Array2 * 60
 		SoundLength_Array3 := SoundLength_Array1 + SoundLength_Array2 + SoundLength_Array3
-		
+
 			; Sometimes weird files report no length or 0 seconds. If that is the case, assign it a length of 1
 			If (SoundLength_Array3 = 0 || SoundLength_Array3 = "")
 			{
 			SoundLength_Array3 = 1
 			}
-			
+
 			; Don't allow any clips over MAXCLIPLENGTH in the database file
 			If (SoundLength_Array3 <= MaxClipLength && InStr(A_LoopFileName,"#"))
 			{
 			Fn_WriteMP3ToTxt()
 			}
-			
+
 		}
 	TotalFilesCompleted += 1
 	vProgressBar := 100 * (TotalFilesCompleted / TotalFilestoRead)
 	GuiControl,, ProgressBar1, %vProgressBar%
 	}
-	
+
 	Loop, %LHCP_Dir%/*.wav														;Cycle for wav */
 	{
 	StringTrimRight, FileName, A_LoopFileName, 4 ;Cut off the .mp3 or .wav
 
 	;Set Array to Blank in case file is not formatted correctly.
-	LHCP_Array1 = 
-	LHCP_Array2 = 
-	
+	LHCP_Array1 =
+	LHCP_Array2 =
+
 	StringSplit, LHCP_Array, FileName, #, ;If # ever stops working, switch to %A_Tab%
 	StringReplace, LHCP_Array2, LHCP_Array2, `^, `?, All
-	
+
 	filepath = %LHCP_Dir%\%A_LoopFileName%
-	MP3Comments = 
+	MP3Comments =
 	Fn_id3read_commentslength(filepath,object="msg")
 	MP3Comments = %comments%
-	
+
 		{ ;Length Stuff in here
 		;Example length returns  "00:01:12"
 		SoundLength_Array1 = ;hour
@@ -426,16 +473,16 @@ TotalFilesCompleted = 0
 		SoundLength_Array3 = ;sec
 		StringSplit, SoundLength_Array, length, :, . ; Omits periods.   If # ever stops working, switch to %A_Tab%
 		;Msgbox, %SoundLength_Array1% - %SoundLength_Array2% - %SoundLength_Array3%
-		
+
 		SoundLength_Array1 := SoundLength_Array1 * 3600
 		SoundLength_Array2  := SoundLength_Array2 * 60
 		SoundLength_Array3 := SoundLength_Array1 + SoundLength_Array2 + SoundLength_Array3
-		
+
 			If (SoundLength_Array3 = 0 || SoundLength_Array3 = "")
 			{
 			SoundLength_Array3 = 1
 			}
-			
+
 			If (SoundLength_Array3 <= MaxClipLength && InStr(A_LoopFileName,"#"))
 			{
 			Fn_WriteWAVToTxt()
@@ -499,21 +546,12 @@ Fn_HardCodedGlobals()
 {
 global
 
-LHCP_Dir = %WoW_Dir%\Interface\AddOns\LHCP_Mudabu
-
 OnCheck = 1
 MaxClipLength = 30
-MasterList = %A_ScriptDir%\Data\LHCP_MasterList.ini
-DependenciesList = %A_ScriptDir%\Data\dependencies.ini
-Leeroy_Dir = %WoW_Dir%\Interface\AddOns\LeeroyHillCatsPower
-}
-
-
-Fn_InstalledFiles()
-{
-FileInstall, Data\LHCP-X.png, %A_ScriptDir%\Data\LHCP-X.png, 1
-FileInstall, Data\dependencies.ini, %A_ScriptDir%\Data\dependencies.ini, 1
-FileInstall, LHCP-X README.txt, %A_ScriptDir%\LHCP-X ReadMe.txt, 1
+MasterList_Loc = %A_ScriptDir%\Data\LHCP_MasterList.ini
+LHCP_Dir = %A_ScriptDir%\Data\Files
+;;;DependenciesList = %A_ScriptDir%\Data\dependencies.ini
+;;;Leeroy_Dir = %WoW_Dir%\Interface\AddOns\LeeroyHillCatsPower
 }
 
 
@@ -526,13 +564,13 @@ Fn_BuildGUI()
 global
 
 Gui, Add, Button, x292 y30 w100 h30 gAutoUpdate, Auto-Update
-Gui, Add, Button, x292 y70 w70 h30 gFolderSelect, Select WoW Dir
-Gui, Add, Button, x362 y70 w30 h30 gBuildDataBase, Build DB
-Gui, Add, CheckBox, x333 y10 w100 h20 Checked1 gSwitchOnOff, On
+;Gui, Add, Button, x292 y70 w70 h30 gFolderSelect, Select WoW Dir
+;Gui, Add, Button, x362 y70 w30 h30 gBuildDataBase, Build DB
+;Gui, Add, CheckBox, x333 y10 w100 h20 Checked1 gSwitchOnOff, On
 Gui, Add, Picture, x2 y10 w290 h56 , %A_ScriptDir%\Data\LHCP-X.png
-Gui, Add, Text, x82 y90 w160 h20 , by Chunjee - DownloadMob.com
+Gui, Add, Text, x82 y90 w160 h20 , Chunjee - DownloadMob.com
 Gui, Add, Text, x2 y90, %VERSIONNAME%
-Gui, Add, Progress, x12 y70 w260 h10 vProgressBar1, 0
+Gui, Add, Progress, cBlack x6 y70 w270 h10 vProgressBar1, 100
 ; Generated using SmartGUI Creator 4.0
 Gui, Show, x375 y140 h107 w400, LHCP-X
 }
@@ -577,7 +615,7 @@ LuaFileName = LHCP_pkg.lua
 FileDelete, %LHCP_Dir%\%LuaFileName%
 
 
-Loop, %LHCP_Dir%/*.* ;Count all files in folder*/		
+Loop, %LHCP_Dir%/*.* ;Count all files in folder*/
 {
 TotalFiles_FM += 1
 }
@@ -603,9 +641,9 @@ Loop, %LHCP_Dir%/*.mp3 														;Cycle for mp3s */
 StringTrimRight, FileName_FM, A_LoopFileName, 4 ;Cut off the .mp3 or .wav
 
 ;Set Array to Blank in case file is not formatted correctly.
-LHCP_Array1 = 
-LHCP_Array2 = 
-LHCP_Array3 = 
+LHCP_Array1 =
+LHCP_Array2 =
+LHCP_Array3 =
 
 filepath = %LHCP_Dir%\%A_LoopFileName%
 Fn_id3read_length(filepath,object="msg")
@@ -628,7 +666,7 @@ StringReplace, LHCP_Array2, LHCP_Array2, `^, `?, All
 	;Msgbox, %length%
 	StringSplit, SoundLength_Array, length, :, . ; Omits periods.   If # ever stops working, switch to %A_Tab%
 	;Msgbox, %SoundLength_Array1% - %SoundLength_Array2% - %SoundLength_Array3%
-	
+
 	SoundLength_Array1 := SoundLength_Array1 * 3600
 	SoundLength_Array2  := SoundLength_Array2 * 60
 	SoundLength_Array3 := SoundLength_Array1 + SoundLength_Array2 + SoundLength_Array3
@@ -636,13 +674,13 @@ StringReplace, LHCP_Array2, LHCP_Array2, `^, `?, All
 		{
 		SoundLength_Array3 = 1
 		}
-		
+
 	}
 
-	
+
 	IfInString, A_LoopFileName, #
 					{
-	
+
 FileAppend,
 (
 
@@ -655,7 +693,7 @@ LeeroyHillCatsPower_data["%LHCP_Array1%"] = {
 ), %LHCP_Dir%/%LuaFileName%
 
 					}
-	
+
 TotalWrittentoFile += 1
 vProgressBar := 100 * (TotalWrittentoFile / TotalFiles_FM)
 GuiControl,, ProgressBar1, %vProgressBar%
@@ -665,9 +703,9 @@ Loop, %LHCP_Dir%/*.wav														;Cycle for wavs */
 StringTrimRight, FileName_FM, A_LoopFileName, 4 ;Cut off the .mp3 or .wav
 
 ;Set Array to Blank in case file is not formatted correctly.
-LHCP_Array1 = 
-LHCP_Array2 = 
-LHCP_Array3 = 
+LHCP_Array1 =
+LHCP_Array2 =
+LHCP_Array3 =
 
 filepath = %LHCP_Dir%\%A_LoopFileName%
 Fn_id3read_length(filepath,object="msg")
@@ -681,8 +719,8 @@ StringSplit, LHCP_Array, FileName_FM, #, %A_Space% ; If # ever stops working, sw
 ;Replace all ^ with question marks
 StringReplace, LHCP_Array2, LHCP_Array2, `^, `?, All
 
-	
-	
+
+
 	{ ;Length Stuff in here
 	;Example length returns  "00:01:12"
 	SoundLength_Array1 = ;hour
@@ -691,11 +729,11 @@ StringReplace, LHCP_Array2, LHCP_Array2, `^, `?, All
 	;Msgbox, %length%
 	StringSplit, SoundLength_Array, length, :, . ; Omits periods.   If # ever stops working, switch to %A_Tab%
 	;Msgbox, %SoundLength_Array1% - %SoundLength_Array2% - %SoundLength_Array3%
-	
+
 	SoundLength_Array1 := SoundLength_Array1 * 3600
 	SoundLength_Array2  := SoundLength_Array2 * 60
 	SoundLength_Array3 := SoundLength_Array1 + SoundLength_Array2 + SoundLength_Array3
-	
+
 		If (SoundLength_Array3 = 0 || SoundLength_Array3 = "")
 		{
 		SoundLength_Array3 = 1
@@ -741,12 +779,12 @@ Fn_id3read_length(filename,object="msg")
 global
 
 objShell := ComObjCreate("Shell.Application")
-	
+
 SplitPath,filename , ename,edir
 
 oDir := objShell.NameSpace(eDir)
 oMP3 := oDir.ParseName(eName)
-  
+
 ;size := oDir.GetDetailsOf(oMP3, 1)
 ;Type := oDir.GetDetailsOf(oMP3, 2)
 ;fileformat := oDir.GetDetailsOf(oMP3, 9)
@@ -773,12 +811,12 @@ Fn_id3read_commentslength(filename,object="msg")
 global
 
 objShell := ComObjCreate("Shell.Application")
-	
+
 SplitPath,filename , ename,edir
 
 oDir := objShell.NameSpace(eDir)
 oMP3 := oDir.ParseName(eName)
-  
+
 ;size := oDir.GetDetailsOf(oMP3, 1)
 ;Type := oDir.GetDetailsOf(oMP3, 2)
 ;fileformat := oDir.GetDetailsOf(oMP3, 9)
@@ -823,4 +861,47 @@ Fn_DownloadToFile(url, filename)
     DllCall("wininet\InternetCloseHandle", "ptr", h)
     o.close()
     return c
+}
+
+
+
+
+VERSIONNAME = v0.0
+Startup()
+{
+SetBatchLines -1 ;Go as fast as CPU will allow
+#NoEnv ;performance and compatibility
+#NoTrayIcon
+#SingleInstance Off
+}
+
+
+Chat(Channel, Text)
+{
+	;IRC.Chat(Channel, Text)
+	TCP := new SocketTCP()
+	TCP.Connect("localhost", 26656)
+	TCP.SendText(Channel "," Text)
+}
+
+Ini_Read(FileName)
+{
+	FileRead, File, %FileName%
+	return File ? Ini_Reads(File) : ""
+}
+
+Ini_Reads(FileName)
+{
+	static RegEx := "^\s*(?:`;.*|(.*?)(?:\s+`;.*)?)\s*$"
+	Section := Out := []
+	Loop, Parse, FileName, `n, `r
+	{
+		if !(RegExMatch(A_LoopField, RegEx, Match) && Line := Match1)
+			Continue
+		if RegExMatch(Line, "^\[(.+)\]$", Match)
+			Out[Match1] := (Section := [])
+		else if RegExMatch(Line, "^\s*(.+?)\s*=\s*(.*?)\s*$", Match)
+			Section[Match1] := Match2
+	}
+	return Out
 }
