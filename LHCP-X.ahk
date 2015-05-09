@@ -25,62 +25,52 @@ Sb_InstalledFiles()
 #Include Json.ahk
 
 
-
-FileCreateDir, %A_ScriptDir%\Data\Files\
-DataBase_Loc = %A_ScriptDir%\Data\LHCP_DataBase.json
-
-
-class IRC
-{
-	static _ := IRC := new IRC() ; Automatically initialize base object
-	__Call(Name, Params*)
-	{
-		TCP := new SocketTCP()
-		TCP.Connect("localhost", 26656)
-		TCP.SendText(Json_FromObj({MethodName: Name, Params: Params}))
-		return Json_ToObj(TCP.recvText()).return
-		return
-	}
-}
-
-
 ;/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\
 ;StartUp
 ;\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/
+;Always load settings
+	SettingsFile := A_ScriptDir . "\Settings.ini"
+	Settings := Ini_Read(SettingsFile)
+	If (Settings.Server.LHCP_Channel = "") {
+	Msgbox, There was a problem reading your LHCP Channel
+	}
 
+;Always load pre-existing LHCP DataBase
+FileCreateDir, %A_ScriptDir%\Data\Files\
+DataBase_Loc = %A_ScriptDir%\Data\LHCP_DataBase.json
+	If (FileExist(DataBase_Loc)) {
+	FileRead, MemoryFile, % DataBase_Loc
+	LHCP_Array := Fn_JSONtooOBJ(MemoryFile)
+	MemoryFile := ;BLANK
+	} Else {
+	LHCP_Array := Fn_GenerateDB()
+	}
+		
+;;Always have make TCP available
+
+
+
+;/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\
+;MAIN
+;\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/
 CLI_Arg = %1%
-	;Create GUI and offer updates if run with no cli-arguments
+	;;Create GUI if run with no cli-arguments
 	If (!CLI_Arg) {
-	Fn_BuildGUI()
+	Sb_BuildGUI()
 	Gui, +Enable
 	Fn_HardCodedGlobals()
-	Fn_LoadtoMemory(DataBaseFile)
-	Fn_GenerateDB()
+	;Fn_LoadtoMemory(DataBaseFile)
+	LHCP_Array := Fn_GenerateDB()
 	Return
 	}
 
 	;launched with CLI argument
 	If (CLI_Arg) {
-		;Load pre-existing DataBase
-		If (FileExist(DataBase_Loc)) {
-		FileRead, MemoryFile, % DataBase_Loc
-		LHCP_Array := Fn_JSONtooOBJ(MemoryFile)
-		MemoryFile := ;BLANK
-		} Else {
-		LHCP_Array := Fn_GenerateDB()
-		}
-
-		SettingsFile := A_ScriptDir . "\Settings.ini"
-		Settings := Ini_Read(SettingsFile)
-
 		If (CLI_Arg = "jason") {
 		Fn_GenerateDB()
 		}
 		If (CLI_Arg = "stop") {
-			Loop, 10
-			{
-			Process, Close, LHCP-X.exe
-			}
+		Sb_CloseAllInstances()
 		Exitapp
 		}
 		If (InStr(CLI_Arg,"||")) {
@@ -98,7 +88,6 @@ CLI_Arg = %1%
 		} Else {
 			Loop, % LHCP_Array.MaxIndex() {
 				If(CLI_Arg = LHCP_Array[A_Index,"Command"]) {
-				;Chat(StrReplace(Settings.Server.LHCP_Channel, "#"), LHCP_Array[A_Index, "Phrase"])
 				SoundPlay, % LHCP_Array[A_Index,"FilePath"], 1
 				ExitApp
 				}
@@ -112,7 +101,7 @@ CLI_Arg = %1%
 
 
 ;/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\
-; Buttons
+; Buttons & Hotkeys
 ;\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/
 
 ^F7::
@@ -121,12 +110,10 @@ Reload
 ;~~~~~~~~~~~~~~~~~~~~~
 ;Download All Files, build new DB
 ;~~~~~~~~~~~~~~~~~~~~~
-AutoUpdate:
-
+Button-AutoUpdate:
 ;Create Dir
 LHCP_Dir = %A_ScriptDir%\Data\Files
 FileCreateDir, %LHCP_Dir%
-
 
 ;Download Master List and load to memory
 MasterFile_Loc = %A_ScriptDir%\Data\LHCP_MasterList.txt
@@ -137,15 +124,11 @@ FileRead, The_MemoryFile, %MasterFile_Loc%
 
 ;Load into Array
 Txt_Array := StrSplit(The_MemoryFile,"`r`n")
-
 ;Set Progressbar to 0%
-
-
 TotalDownloaded = 0
+
 GuiControl,, ProgressBar1, 1
 	Loop, % Txt_Array.MaxIndex() {
-
-
 	FinalFileName := Txt_Array[A_Index]
 	DropboxURL := Txt_Array[A_Index]
 	StringReplace, DropboxURL, DropboxURL, %A_Space%, `%20, All
@@ -161,10 +144,8 @@ GuiControl,, ProgressBar1, 1
 		;Download if not in collection
 		If (!FileExist(CurrentFile)) {
 		UrlDownloadToFile, %DropboxURL2%, %CurrentFile%
-		TotalDownloaded ++
 		}
-
-
+	TotalDownloaded ++
 	vProgressBar := 100 * (TotalDownloaded / Txt_Array.MaxIndex())
 	GuiControl,, ProgressBar1, %vProgressBar%
 	}
@@ -172,18 +153,28 @@ GuiControl,, ProgressBar1, 1
 LHCP_Array := Fn_GenerateDB()
 GuiControl,, ProgressBar1, 0
 
-
 ;DEPRECIATED - Ask user if the want to delete any unofficial files
 ;;;MessageWindow()
 Return
 
 
+;~~~~~~~~~~~~~~~~~~~~~
+; Open Selection GUI
+;~~~~~~~~~~~~~~~~~~~~~
+Button-SectionGUI:
+Sb_SelectionGUI()
+Return
+
+
+;~~~~~~~~~~~~~~~~~~~~~
+;Delete unneeded
+;~~~~~~~~~~~~~~~~~~~~~
 DeleteUnofficial:
 FileDelete, %LHCP_Dir%\Data\LHCP_pkg.lua
 ;UrlDownloadToFile, https://dl.dropboxusercontent.com/u/268814505/LHCP/LHCP_pkg.lua, %LHCP_Dir%\LHCP_pkg.lua
 DeletedFiles_Counter = 0
 Gui, 2: Destroy
-Fn_BuildGUI()
+Sb_BuildGUI()
 	Loop, %LHCP_Dir%/*.* ;*/
 	{
 	CurrentFileName = %A_LoopFileName%
@@ -210,34 +201,6 @@ Fn_BuildGUI()
 ;Msgbox, The database has been created.
 Fn_LoadtoMemory(DataBaseFile)
 Msgbox, Your LHCP folder has been cleaned of %DeletedFiles_Counter% files.
-Return
-
-
-GenerateLUA:
-Gui, 2: Destroy
-Fn_BuildGUI()
-Fn_EmbeddedLUAMaker()
-FileDelete, %DataBaseFile%
-Fn_CatalogueFiles()
-Fn_LoadtoMemory(DataBaseFile)
-Msgbox, Completed Generation a new LHCP_pkg.lua
-Return
-
-
-FolderSelect:
-FileSelectFolder, OutputVar, *%WoW_Dir%, , Select Your World of Warcraft folder
-IniWrite, %OutputVar%, %A_ScriptFullPath%:Stream:$DATA, Settings, EmbVar
-IniRead, WoW_Dir, %A_ScriptFullPath%:Stream:$DATA, Settings, EmbVar,error
-
-Fn_HardCodedGlobals()
-;Continue down and make DataBase
-
-BuildDataBase:
-;Msgbox, LHCP-Helper will index all the clips in your folder. Please wait 2 mins for finished message.
-FileDelete, %DataBaseFile%
-Fn_CatalogueFiles()
-;Msgbox, The database has been created.
-Fn_LoadtoMemory(DataBaseFile)
 Return
 
 
@@ -298,6 +261,140 @@ SendInput /%Buffer%
 Return
 
 
+
+;/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\
+; GUI
+;\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/
+
+Sb_BuildGUI()
+{
+global
+
+Gui, Add, Button, x292 y20 w100 h30 gButton-AutoUpdate, Auto-Update
+Gui, Add, Button, x292 y50 w100 h30 gButton-SectionGUI, Selection GUI
+;Gui, Add, Button, x292 y70 w70 h30 gFolderSelect, Select WoW Dir
+;Gui, Add, Button, x362 y70 w30 h30 gBuildDataBase, Build DB
+;Gui, Add, CheckBox, x333 y10 w100 h20 Checked1 gSwitchOnOff, On
+Gui, Add, Picture, x2 y10 w290 h56 , %A_ScriptDir%\Data\LHCP-X.png
+Gui, Add, Text, x82 y90 w160 h20 , Chunjee - DownloadMob.com
+Gui, Add, Text, x2 y90, %The_Version%
+Gui, Add, Progress, cBlack x6 y70 w270 h10 vProgressBar1, 100
+
+;Show basic GUI after created
+Gui, Show, x400 y100 h107 w400, LHCP-X
+}
+
+
+
+Sb_SelectionGUI()
+{
+global
+
+Gui, submit ;Hide old GUI
+
+Gui, Selection: Add, Picture, x4 y0 w200 h30 , %A_ScriptDir%\Data\LHCP-X.png
+Gui, Selection: Add, Edit, x2 y40 w596 h20 gUserInput vGUI_UserInput, !
+Gui, Selection: Add, ListView, x2 y70 w596 h536 Grid +ReDraw gDoubleClick vGUI_Listview, Disabled|Command|Length|Phrase|
+
+
+Gui, Selection: Add, Button, x400 y4 w100 h30 gButton-Disable, ToggleSelected
+Gui, Selection: Add, Button, x500 y4 w100 h30 gButton-EnableAll, Enable All
+
+;Switch Selection GUI to default for Listview stuff
+Gui, Selection:Default
+	;Spit all 
+	Loop, % LHCP_Array.MaxIndex() {
+		If (LHCP_Array[A_Index,"Disabled"] = 1) {
+		Status = ✓
+		} Else {
+		Status =
+		}
+	LV_Add("",Status,LHCP_Array[A_Index,"Command"],LHCP_Array[A_Index,"SecLength"],LHCP_Array[A_Index,"Phrase"])
+	}
+;Show basic GUI after created
+Gui, Selection: Show, h600 w600, LHCP-X
+;Gui, Selection: +owner
+LV_ModifyCol()
+}
+
+
+DoubleClick:
+;Play file or send it to chat
+	If A_GuiEvent = DoubleClick
+	{
+	;Get the text from the row's 2nd field. Command
+	LV_GetText(RowText, A_EventInfo, 2)
+	RowText = %RowText% ;Remove spaces
+		If (RowText != "") {
+		;Send to LHCP Channel
+		;IRC.SendPRIVMSG("LHCP-XBeta", Rowtext)
+		Chat("LHCP-XBeta",RowText)
+		Return
+		}
+	}
+Return
+
+
+UserInput:
+;Update Listview to reflect what user entered
+Gui, Submit, NoHide
+LV_Delete()
+
+	Loop, % LHCP_Array.MaxIndex() {
+		If(InStr(LHCP_Array[A_Index,"Command"],GUI_UserInput) || InStr(LHCP_Array[A_Index,"Phrase"],GUI_UserInput)) {
+		LV_Add("","",LHCP_Array[A_Index,"Command"],LHCP_Array[A_Index,"SecLength"],LHCP_Array[A_Index,"Phrase"])
+		}
+	}
+Return
+
+
+Button-Disable:
+;Disable or enables selected file
+Return
+
+
+Button-EnableAll:
+;Enables all files
+Return
+
+
+GuiClose:
+Sb_CloseAllInstances()
+ExitApp
+
+SwitchOnOff:
+If (OnCheck = 1)
+{
+OnCheck = 0
+}
+else
+{
+OnCheck = 1
+}
+Return
+
+
+
+MessageWindow()
+{
+global
+
+Gui, WarningWindow: Add, Text, x12 y10 w450 h90 , LHCP-X has finished downloading %Number_FilesGrabbed% "official" soundsclips. Would you like to delete any non-official clips in your addon folder? The other option will generate a new LHCP_pkg.lua using the official clips plus any mp3/wav files you have in the folder. `n`nKeep in mind that your files need to follow this format: `ncommand#words to say.mp3
+Gui, WarningWindow: Add, Button, x112 y100 w350 h70 gDeleteUnofficial, Just delete any extra soundfiles (Recommended)
+Gui, WarningWindow: Add, Button, x12 y100 w90 h70 gGenerateLUA, Generate a new LCHP_pkg.lua
+Gui, WarningWindow: Show, x267 y143 h184 w479, Finished downloading all files.
+
+Gui, WarningWindow: +owner
+Return
+}
+
+
+
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+;DEPRECIATING GUI STUFF
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 ;/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\
 ; FUNCTIONS
 ;\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/
@@ -305,18 +402,41 @@ Return
 Fn_GenerateDB()
 {
 TempArray := []
-
-	;Loop all mp3 files
-	Loop, %A_ScriptDir%\Data\Files\*.mp3 , 1
+	
+	Total_mp3s = 0
+	Loop, %A_ScriptDir%\Data\Files\*#*.mp3 , 1
 	{
-	Command := Fn_QuickRegEx(A_LoopFileName,"([ !\w]+)#")
-	Phrase := Fn_QuickRegEx(A_LoopFileName,"#([ !\w]+)")
+	Total_mp3s ++
+	}
+	
+	;Loop all mp3 files
+	Loop, %A_ScriptDir%\Data\Files\*#*.mp3 , 1
+	{
+	Command := Fn_QuickRegEx(A_LoopFileName,"(.+)#")
+	Phrase := Fn_QuickRegEx(A_LoopFileName,"#(.+)")
+	Length := Fn_id3return_length(A_LoopFileFullPath,object="msg")
+	
+		;Convert Length to seconds only
+		{
+		Hours := 120 * Fn_QuickRegEx(Length,"(\d+):")
+		Minutes := 60 * Fn_QuickRegEx(Length,":(\d+):")
+		Seconds := Fn_QuickRegEx(Length,":(\d+)$")
+		Length := Hours + Minutes + Seconds
+			If (Length < 1) {
+			Length = 1 ;Assign length of 1 if  less than 1
+			}
+		}
+	
 		If (Command != "null" && Phrase != "null") {
 		TempArray[A_Index,"FilePath"] := A_LoopFileFullPath
 		TempArray[A_Index,"Command"] := Command
 		TempArray[A_Index,"Phrase"] := Phrase
+		TempArray[A_Index,"SecLength"] := Length
 		}
+	Fn_UpdateProgressBar("ProgressBar1",A_Index,Total_mp3s)
 	}
+	
+	Fn_UpdateProgressBar("ProgressBar1","0","0")
 	;Write out the newley created Array and return it for the MAIN
 	;MemoryFile := Fn_JSONfromOBJ(TempArray)
 	FileDelete, %A_ScriptDir%\Data\LHCP_DataBase.json
@@ -324,6 +444,34 @@ TempArray := []
 	Return % TempArray
 }
 
+
+Fn_UpdateProgressBar(para_ProgressBarVar,para_Current,para_Max)
+{
+global
+	Percent := (para_Current / para_Max) * 100
+	Percent := Fn_PercentCheck(Percent)
+		If (para_Current = 0 && para_Max = 0) {
+		Percent = 0
+		}
+GuiControl,, %para_ProgressBarVar%, %Percent% ;Change the progressbar percentage
+;Return %para_Current%
+}
+
+
+Fn_PercentCheck(para_Input)
+{
+;Checks to ensure that the input var is not under 1 or over 100, essentially for percentages
+para_Input := Ceil(para_Input)
+	If (para_Input >= 100)
+	{
+	Return 100
+	}
+	If (para_Input <= 1)
+	{
+	Return 1
+	}
+Return %para_Input%
+}
 
 
 Fn_OnChecker()
@@ -336,6 +484,10 @@ global
 	}
 
 }
+
+
+
+
 
 Fn_LoadtoMemory(filename)
 {
@@ -554,54 +706,14 @@ LHCP_Dir = %A_ScriptDir%\Data\Files
 }
 
 
-;
-;GUI
-;
-
-Fn_BuildGUI()
+Sb_CloseAllInstances()
 {
-global
-
-Gui, Add, Button, x292 y30 w100 h30 gAutoUpdate, Auto-Update
-;Gui, Add, Button, x292 y70 w70 h30 gFolderSelect, Select WoW Dir
-;Gui, Add, Button, x362 y70 w30 h30 gBuildDataBase, Build DB
-;Gui, Add, CheckBox, x333 y10 w100 h20 Checked1 gSwitchOnOff, On
-Gui, Add, Picture, x2 y10 w290 h56 , %A_ScriptDir%\Data\LHCP-X.png
-Gui, Add, Text, x82 y90 w160 h20 , Chunjee - DownloadMob.com
-Gui, Add, Text, x2 y90, %The_Version%
-Gui, Add, Progress, cBlack x6 y70 w270 h10 vProgressBar1, 100
-; Generated using SmartGUI Creator 4.0
-Gui, Show, x375 y140 h107 w400, LHCP-X
-}
-
-
-GuiClose:
+;Close all instances of LHCP-X
+	Loop, 10
+	{
+	Process, Close, LHCP-X.exe
+	}
 ExitApp
-
-SwitchOnOff:
-If (OnCheck = 1)
-{
-OnCheck = 0
-}
-else
-{
-OnCheck = 1
-}
-Return
-
-
-
-MessageWindow()
-{
-global
-
-Gui, 2: Add, Text, x12 y10 w450 h90 , LHCP-X has finished downloading %Number_FilesGrabbed% "official" soundsclips. Would you like to delete any non-official clips in your addon folder? The other option will generate a new LHCP_pkg.lua using the official clips plus any mp3/wav files you have in the folder. `n`nKeep in mind that your files need to follow this format: `ncommand#words to say.mp3
-Gui, 2: Add, Button, x112 y100 w350 h70 gDeleteUnofficial, Just delete any extra soundfiles (Recommended)
-Gui, 2: Add, Button, x12 y100 w90 h70 gGenerateLUA, Generate a new LCHP_pkg.lua
-Gui, 2: Show, x267 y143 h184 w479, Finished downloading all files.
-
-Gui, 2:+owner
-Return
 }
 
 
@@ -762,9 +874,19 @@ Fn_ProgressBar()
 Fn_ProgressBar()
 {
 global
+;lol wat
+}
 
 
+Fn_id3return_length(filename,object="msg")
+{
 
+objShell := ComObjCreate("Shell.Application")
+SplitPath,filename , ename,edir
+oDir := objShell.NameSpace(eDir)
+oMP3 := oDir.ParseName(eName)
+Length := oDir.GetDetailsOf(oMP3, 27)
+Return %Length%
 }
 
 ;~~~~~~~~~~~~~~~~~~~~~
@@ -863,23 +985,23 @@ Fn_DownloadToFile(url, filename)
 }
 
 
-
-
-
-Startup()
-{
-#NoEnv ;performance and compatibility
-#NoTrayIcon
-#SingleInstance Off
-}
-
-
 Chat(Channel, Text)
 {
-	;IRC.Chat(Channel, Text)
 	TCP := new SocketTCP()
 	TCP.Connect("localhost", 26656)
 	TCP.SendText(Channel "," Text)
+}
+
+class IRC
+{
+	static _ := IRC := new IRC() ; Automatically initialize base object
+	__Call(Name, Params*)
+	{
+		TCP := new SocketTCP()
+		TCP.Connect("localhost", 26656)
+		TCP.SendText(Json_FromObj({MethodName: Name, Params: Params}))
+		return Json_ToObj(TCP.recvText()).return
+	}
 }
 
 Ini_Read(FileName)
@@ -905,10 +1027,18 @@ Ini_Reads(FileName)
 }
 
 
+Startup()
+{
+#NoEnv ;performance and compatibility
+#NoTrayIcon
+#SingleInstance Off
+}
+
+
 Sb_InstalledFiles()
 {
 ;FileInstall, Source, Dest [, Overwrite = 1
 FileCreateDir, %A_ScriptDir%\Data\
 
-FileInstall, LHCP-X.png, %A_ScriptDir%\Data\LHXP-X.png, 1
+FileInstall, LHCP-X.png, %A_ScriptDir%\Data\LHCP-X.png, 1
 }
