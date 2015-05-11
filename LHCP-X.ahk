@@ -45,7 +45,6 @@ DataBase_Loc = %A_ScriptDir%\Data\LHCP_DataBase.json
 	} Else {
 	LHCP_Array := Fn_GenerateDB()
 	}
-		
 ;;Always have make TCP available
 
 
@@ -73,18 +72,23 @@ CLI_Arg = %1%
 		Sb_CloseAllInstances()
 		Exitapp
 		}
-		If (InStr(CLI_Arg,"||")) {
-		ExitApp
+		If (InStr(CLI_Arg,"|")) {
+		StringReplace, CLI_Arg, CLI_Arg, `|,, All
 		Temp_Array := []
 		X = 0
-			Loop, LHCP_Array.MaxIndex() {
-				If(InStr(CLI_Arg,LHCP_Array[A_Index,"Phrase"])) {
-				X++
-				Temp_Array[]
+			Loop, % LHCP_Array.MaxIndex() {
+				If(InStr(LHCP_Array[A_Index,"Command"],CLI_Arg) || InStr(LHCP_Array[A_Index,"Phrase"],CLI_Arg)) {
+				X ++
+				Temp_Array[X,"Command"] := LHCP_Array[A_Index,"Command"]
+				Temp_Array[X,"Phrase"] := LHCP_Array[A_Index,"Phrase"]
+				Temp_Array[X,"FilePath"] := LHCP_Array[A_Index,"FilePath"]
 				}
 			}
-
-
+		;Choose random out of possible matches and play it
+		Random, Rand, 1, Temp_Array.MaxIndex()
+		SoundPlay, % Temp_Array[Rand,"FilePath"], 1
+		;Msgbox, % Rand . "    " . Temp_Array[Rand,"FilePath"]
+		ExitApp
 		} Else {
 			Loop, % LHCP_Array.MaxIndex() {
 				If(CLI_Arg = LHCP_Array[A_Index,"Command"]) {
@@ -327,8 +331,8 @@ DoubleClick:
 	RowText = %RowText% ;Remove spaces
 		If (RowText != "") {
 		;Send to LHCP Channel
-		;IRC.SendPRIVMSG("LHCP-XBeta", Rowtext)
-		Chat("LHCP-XBeta",RowText)
+		Chat("#LHCP-XBeta", "/" . RowText)
+		;IRC.SendPRIVMSG("#LHCP-XBeta", Rowtext)
 		Return
 		}
 	}
@@ -357,7 +361,7 @@ Button-EnableAll:
 ;Enables all files
 Return
 
-
+SelectionGuiClose:
 GuiClose:
 Sb_CloseAllInstances()
 ExitApp
