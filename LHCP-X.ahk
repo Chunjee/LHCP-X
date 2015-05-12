@@ -28,16 +28,18 @@ Sb_InstalledFiles()
 ;/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\
 ;StartUp
 ;\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/
+Clips_Dir := A_ScriptDir . "\Data\Clips"
+DataBase_Loc := A_ScriptDir . "\Data\LHCP_DataBase.json"
+
 ;Always load settings
-	SettingsFile := A_ScriptDir . "\Settings.ini"
+	SettingsFile := A_ScriptDir . "\Data\Settings.ini"
 	Settings := Ini_Read(SettingsFile)
 	If (Settings.Server.LHCP_Channel = "") {
 	Msgbox, There was a problem reading your LHCP Channel
 	}
 
 ;Always load pre-existing LHCP DataBase
-FileCreateDir, %A_ScriptDir%\Data\Files\
-DataBase_Loc = %A_ScriptDir%\Data\LHCP_DataBase.json
+FileCreateDir, % Clips_Dir
 	If (FileExist(DataBase_Loc)) {
 	FileRead, MemoryFile, % DataBase_Loc
 	LHCP_Array := Fn_JSONtooOBJ(MemoryFile)
@@ -116,8 +118,7 @@ Reload
 ;~~~~~~~~~~~~~~~~~~~~~
 Button-AutoUpdate:
 ;Create Dir
-LHCP_Dir = %A_ScriptDir%\Data\Files
-FileCreateDir, %LHCP_Dir%
+FileCreateDir, % Clips_Dir
 
 ;Download Master List and load to memory
 MasterFile_Loc = %A_ScriptDir%\Data\LHCP_MasterList.txt
@@ -142,7 +143,7 @@ GuiControl,, ProgressBar1, 1
 	StringReplace, DropboxURL, DropboxURL, `%, `%, All
 	DropboxURL2 = https://dl.dropboxusercontent.com/u/268814505/LHCP/%DropboxURL%
 
-	CurrentFile := LHCP_Dir . "\" . FinalFileName
+	CurrentFile := Clips_Dir . "\" . FinalFileName
 	StringReplace, CurrentFile, CurrentFile, `n,, All
 	StringReplace, CurrentFile, CurrentFile, `r,, All
 		;Download if not in collection
@@ -174,12 +175,12 @@ Return
 ;Delete unneeded
 ;~~~~~~~~~~~~~~~~~~~~~
 DeleteUnofficial:
-FileDelete, %LHCP_Dir%\Data\LHCP_pkg.lua
-;UrlDownloadToFile, https://dl.dropboxusercontent.com/u/268814505/LHCP/LHCP_pkg.lua, %LHCP_Dir%\LHCP_pkg.lua
+FileDelete, %Clips_Dir%\LHCP_pkg.lua
+;UrlDownloadToFile, https://dl.dropboxusercontent.com/u/268814505/LHCP/LHCP_pkg.lua, %Clips_Dir%\LHCP_pkg.lua
 DeletedFiles_Counter = 0
 Gui, 2: Destroy
 Sb_BuildGUI()
-	Loop, %LHCP_Dir%/*.* ;*/
+	Loop, %Clips_Dir%/*.* ;*/
 	{
 	CurrentFileName = %A_LoopFileName%
 	DELETETHISFILE = 1
@@ -196,7 +197,7 @@ Sb_BuildGUI()
 		{
 		;Msgbox, %CurrentFileName% Marked for deletion.
 		DeletedFiles_Counter += 1
-		FileDelete, %LHCP_Dir%\%CurrentFileName%
+		FileDelete, %Clips_Dir%\%CurrentFileName%
 		}
 
 	}
@@ -408,13 +409,13 @@ Fn_GenerateDB()
 TempArray := []
 	
 	Total_mp3s = 0
-	Loop, %A_ScriptDir%\Data\Files\*#*.mp3 , 1
+	Loop, %A_ScriptDir%\Data\Clips\*#*.mp3 , 1
 	{
 	Total_mp3s ++
 	}
 	
 	;Loop all mp3 files
-	Loop, %A_ScriptDir%\Data\Files\*#*.mp3 , 1
+	Loop, %A_ScriptDir%\Data\Clips\*#*.mp3 , 1
 	{
 	Command := Fn_QuickRegEx(A_LoopFileName,"(.+)#")
 	Phrase := Fn_QuickRegEx(A_LoopFileName,"#(.+)")
@@ -554,13 +555,13 @@ Fn_CatalogueFiles()
 {
 global
 
-	Loop, %LHCP_Dir%/*.* 														;Comment */
+	Loop, %Clips_Dir%/*.* 														;Comment */
 	{
 	TotalFilestoRead += 1
 	}
 
 TotalFilesCompleted = 0
-	Loop, %LHCP_Dir%/*.mp3 														;Cycle for mp3s */
+	Loop, %Clips_Dir%/*.mp3 														;Cycle for mp3s */
 	{
 	StringTrimRight, FileName, A_LoopFileName, 4 ;Cut off the .mp3 or .wav
 
@@ -571,7 +572,7 @@ TotalFilesCompleted = 0
 	StringSplit, LHCP_Array, FileName, #, ;If # ever stops working, switch to %A_Tab%
 	StringReplace, LHCP_Array2, LHCP_Array2, `^, `?, All
 
-	filepath = %LHCP_Dir%\%A_LoopFileName%
+	filepath = %Clips_Dir%\%A_LoopFileName%
 	MP3Comments =
 	Fn_id3read_length(filepath,object="msg")
 	MP3Comments = %Comments%
@@ -605,7 +606,7 @@ TotalFilesCompleted = 0
 	GuiControl,, ProgressBar1, %vProgressBar%
 	}
 
-	Loop, %LHCP_Dir%/*.wav														;Cycle for wav */
+	Loop, %Clips_Dir%/*.wav														;Cycle for wav */
 	{
 	StringTrimRight, FileName, A_LoopFileName, 4 ;Cut off the .mp3 or .wav
 
@@ -616,7 +617,7 @@ TotalFilesCompleted = 0
 	StringSplit, LHCP_Array, FileName, #, ;If # ever stops working, switch to %A_Tab%
 	StringReplace, LHCP_Array2, LHCP_Array2, `^, `?, All
 
-	filepath = %LHCP_Dir%\%A_LoopFileName%
+	filepath = %Clips_Dir%\%A_LoopFileName%
 	MP3Comments =
 	Fn_id3read_commentslength(filepath,object="msg")
 	MP3Comments = %comments%
@@ -704,7 +705,6 @@ global
 OnCheck = 1
 MaxClipLength = 30
 MasterList_Loc = %A_ScriptDir%\Data\LHCP_MasterList.ini
-LHCP_Dir = %A_ScriptDir%\Data\Files
 ;;;DependenciesList = %A_ScriptDir%\Data\dependencies.ini
 ;;;Leeroy_Dir = %WoW_Dir%\Interface\AddOns\LeeroyHillCatsPower
 }
@@ -727,10 +727,10 @@ Fn_EmbeddedLUAMaker()
 global
 
 LuaFileName = LHCP_pkg.lua
-FileDelete, %LHCP_Dir%\%LuaFileName%
+FileDelete, %Clips_Dir%\%LuaFileName%
 
 
-Loop, %LHCP_Dir%/*.* ;Count all files in folder*/
+Loop, %Clips_Dir%/*.* ;Count all files in folder*/
 {
 TotalFiles_FM += 1
 }
@@ -745,13 +745,13 @@ if not LeeroyHillCatsPower_data
 end
 
 
-), %LHCP_Dir%/%LuaFileName%
+), %Clips_Dir%/%LuaFileName%
 
 
 
 
 
-Loop, %LHCP_Dir%/*.mp3 														;Cycle for mp3s */
+Loop, %Clips_Dir%/*.mp3 														;Cycle for mp3s */
 {
 StringTrimRight, FileName_FM, A_LoopFileName, 4 ;Cut off the .mp3 or .wav
 
@@ -760,12 +760,12 @@ LHCP_Array1 =
 LHCP_Array2 =
 LHCP_Array3 =
 
-filepath = %LHCP_Dir%\%A_LoopFileName%
+filepath = %Clips_Dir%\%A_LoopFileName%
 Fn_id3read_length(filepath,object="msg")
 
 
 
-;FileReadLine, TXT_Line, %LHCP_Dir%\data\aegs.txt, %QuoteNumber%
+;FileReadLine, TXT_Line, %Clips_Dir%\data\aegs.txt, %QuoteNumber%
 StringSplit, LHCP_Array, FileName_FM, #, %A_Space% ; Omits periods.   If # ever stops working, switch to %A_Tab%
 ;Msgbox, %LHCP_Array1% ~ %LHCP_Array2% ~ %LHCP_Array3%
 
@@ -805,7 +805,7 @@ LeeroyHillCatsPower_data["%LHCP_Array1%"] = {
 	["duration"] = %SoundLength_Array3%.0,
 };
 
-), %LHCP_Dir%/%LuaFileName%
+), %Clips_Dir%/%LuaFileName%
 
 					}
 
@@ -813,7 +813,7 @@ TotalWrittentoFile += 1
 vProgressBar := 100 * (TotalWrittentoFile / TotalFiles_FM)
 GuiControl,, ProgressBar1, %vProgressBar%
 }
-Loop, %LHCP_Dir%/*.wav														;Cycle for wavs */
+Loop, %Clips_Dir%/*.wav														;Cycle for wavs */
 {
 StringTrimRight, FileName_FM, A_LoopFileName, 4 ;Cut off the .mp3 or .wav
 
@@ -822,12 +822,12 @@ LHCP_Array1 =
 LHCP_Array2 =
 LHCP_Array3 =
 
-filepath = %LHCP_Dir%\%A_LoopFileName%
+filepath = %Clips_Dir%\%A_LoopFileName%
 Fn_id3read_length(filepath,object="msg")
 
 
 
-;FileReadLine, TXT_Line, %LHCP_Dir%\data\aegs.txt, %QuoteNumber%
+;FileReadLine, TXT_Line, %Clips_Dir%\data\aegs.txt, %QuoteNumber%
 StringSplit, LHCP_Array, FileName_FM, #, %A_Space% ; If # ever stops working, switch to %A_Tab%
 ;Msgbox, %LHCP_Array1% ~ %LHCP_Array2% ~ %LHCP_Array3%
 
@@ -866,7 +866,7 @@ LeeroyHillCatsPower_data["%LHCP_Array1%"] = {
 	["duration"] = %SoundLength_Array3%.0,
 };
 
-), %LHCP_Dir%/%LuaFileName%
+), %Clips_Dir%/%LuaFileName%
 					}
 
 Fn_ProgressBar()
@@ -964,8 +964,6 @@ return 1
 }
 
 
-
-;DownloadToFile by Bentschi
 Fn_DownloadToFile(url, filename)
 {
     static a := "AutoHotkey/" A_AhkVersion
