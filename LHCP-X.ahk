@@ -3,14 +3,14 @@
 ;\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/
 ; Expandable LHCP
 ; Accepts any string as argument. Include a "||" in front of string to play any file that includes that string.
-; Returns full message of file being played.
+; Run without a command lie argument it will launch its own GUI
 
 
 ;~~~~~~~~~~~~~~~~~~~~~
 ;Compile Options
 ;~~~~~~~~~~~~~~~~~~~~~
 SetBatchLines -1 ;Go as fast as CPU will allow
-The_Version = v0.1
+The_Version = v0.1.1
 Startup()
 Sb_InstalledFiles()
 
@@ -31,24 +31,25 @@ Sb_InstalledFiles()
 Clips_Dir := A_ScriptDir . "\Data\Clips"
 DataBase_Loc := A_ScriptDir . "\Data\LHCP_DataBase.json"
 
-;Always load settings
+;;Always load settings
 	SettingsFile := A_ScriptDir . "\Data\Settings.ini"
 	Settings := Ini_Read(SettingsFile)
 	If (Settings.Server.LHCP_Channel = "") {
-	Msgbox, There was a problem reading your LHCP Channel
+	;Msgbox, There was a problem reading your LHCP Channel
 	}
 
-;Always load pre-existing LHCP DataBase
+;;Always load pre-existing LHCP DataBase
 FileCreateDir, % Clips_Dir
 	If (FileExist(DataBase_Loc)) {
 	FileRead, MemoryFile, % DataBase_Loc
 	LHCP_Array := Fn_JSONtooOBJ(MemoryFile)
 	MemoryFile := ;BLANK
-	} Else {
+	}
+	;If the DB does not exists or has very few entries
+	If (!FileExist(DataBase_Loc) || LHCP_Array.MaxIndex() < 2) {
+	;Rethink this
 	LHCP_Array := Fn_GenerateDB()
 	}
-;;Always have make TCP available
-
 
 
 ;/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\
@@ -60,7 +61,6 @@ CLI_Arg = %1%
 	Sb_BuildGUI()
 	Gui, +Enable
 	Fn_HardCodedGlobals()
-	;Fn_LoadtoMemory(DataBaseFile)
 	LHCP_Array := Fn_GenerateDB()
 	Return
 	}
@@ -93,7 +93,7 @@ CLI_Arg = %1%
 		ExitApp
 		} Else {
 			Loop, % LHCP_Array.MaxIndex() {
-				If(CLI_Arg = LHCP_Array[A_Index,"Command"]) {
+				If (CLI_Arg = LHCP_Array[A_Index,"Command"]) {
 				SoundPlay, % LHCP_Array[A_Index,"FilePath"], 1
 				ExitApp
 				}
@@ -214,58 +214,6 @@ Return
 ;Hotkeys
 ;\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/
 
-#IfWinActive World of War
-; Only activates anything below this when in "World of Warcraft" is active.
-~[::
-Fn_OnChecker()
-SendInput {Enter}
-Sleep 30
-SendInput [
-Input, USERINPUT, V T20, {Enter}{Escape}], ww
-;Sends input to game window and ScrotChat when you press Shift+Enter. Visible and case sensitive. Ends when you press Enter or Escape
-	If ErrorLevel = Match
-	{
-	Return
-	}
-	If ErrorLevel = EndKey:Escape
-	{
-	SendInput {Escape} ;remove this line if Escape causes problems with your game. in Wow it exits chatbox.
-	Return
-	}
-	;If ErrorLevel = EndKey:
-	;NOTE ABOUT ENTER HERE
-	{
-	ArrayHauler()
-	UserInputlength := StrLen(USERINPUT)
-	UserInputlength += 10
-	sleep 100
-		If (Buffer != "")
-		{
-		SendInput {Backspace %UserInputlength%}/%Buffer%
-		}
-		else
-		{
-		SendInput {Escape}
-		}
-	;ControlSend, , %ScrotChat%{Return}, Chat
-	Return
-	}
-Return
-
-+]::
-Fn_OnChecker()
-CallCounter += 1
-	If (CallCounter > CallMax)
-	{
-	CallCounter = 1
-	}
-Buffer := LHCPArray[CallCounter]
-SendInput {Enter}
-Sleep 30
-SendInput /%Buffer%
-Return
-
-
 
 ;/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\
 ; GUI
@@ -299,11 +247,11 @@ Gui, submit ;Hide old GUI
 
 Gui, Selection: Add, Picture, x4 y0 w200 h30 , %A_ScriptDir%\Data\LHCP-X.png
 Gui, Selection: Add, Edit, x2 y40 w596 h20 gUserInput vGUI_UserInput, !
-Gui, Selection: Add, ListView, x2 y70 w596 h536 Grid +ReDraw gDoubleClick vGUI_Listview, Disabled|Command|Length|Phrase|
+Gui, Selection: Add, ListView, x2 y70 w596 h536 Grid +ReDraw gDoubleClick vGUI_Listview, Command|Length|Phrase|
 
 
-Gui, Selection: Add, Button, x400 y4 w100 h30 gButton-Disable, ToggleSelected
-Gui, Selection: Add, Button, x500 y4 w100 h30 gButton-EnableAll, Enable All
+;Gui, Selection: Add, Button, x400 y4 w100 h30 gButton-Disable, ToggleSelected
+;Gui, Selection: Add, Button, x500 y4 w100 h30 gButton-EnableAll, Enable All
 
 ;Switch Selection GUI to default for Listview stuff
 Gui, Selection:Default
@@ -314,7 +262,7 @@ Gui, Selection:Default
 		} Else {
 		Status =
 		}
-	LV_Add("",Status,LHCP_Array[A_Index,"Command"],LHCP_Array[A_Index,"SecLength"],LHCP_Array[A_Index,"Phrase"])
+	LV_Add("",LHCP_Array[A_Index,"Command"],LHCP_Array[A_Index,"SecLength"],LHCP_Array[A_Index,"Phrase"])
 	}
 ;Show basic GUI after created
 Gui, Selection: Show, h600 w600, LHCP-X
@@ -347,7 +295,7 @@ LV_Delete()
 
 	Loop, % LHCP_Array.MaxIndex() {
 		If(InStr(LHCP_Array[A_Index,"Command"],GUI_UserInput) || InStr(LHCP_Array[A_Index,"Phrase"],GUI_UserInput)) {
-		LV_Add("","",LHCP_Array[A_Index,"Command"],LHCP_Array[A_Index,"SecLength"],LHCP_Array[A_Index,"Phrase"])
+		LV_Add("",LHCP_Array[A_Index,"Command"],LHCP_Array[A_Index,"SecLength"],LHCP_Array[A_Index,"Phrase"])
 		}
 	}
 Return
@@ -406,6 +354,8 @@ Return
 
 Fn_GenerateDB()
 {
+global LHCP_Array
+;Need Existing LHCP_Array so we can update it without re-reading everything from scratch
 TempArray := []
 	
 	Total_mp3s = 0
@@ -419,6 +369,9 @@ TempArray := []
 	{
 	Command := Fn_QuickRegEx(A_LoopFileName,"(.+)#")
 	Phrase := Fn_QuickRegEx(A_LoopFileName,"#(.+)")
+	
+	;Get clip length from existing array if at all possible
+		
 	Length := Fn_id3return_length(A_LoopFileFullPath,object="msg")
 	
 		;Convert Length to seconds only
@@ -432,6 +385,7 @@ TempArray := []
 			}
 		}
 	
+		;Only remember correctly formatted mp3's
 		If (Command != "null" && Phrase != "null") {
 		TempArray[A_Index,"FilePath"] := A_LoopFileFullPath
 		TempArray[A_Index,"Command"] := Command
@@ -670,7 +624,6 @@ Fn_WriteWAVToTxt()
 {
 global
 
-
 FileAppend,
 (
 %LHCP_Array1%   -%SoundLength_Array3%-   %LHCP_Array2%#
@@ -689,13 +642,6 @@ global
 	TotalQuoteLines += 1
 	}
 }
-
-
-
-;TestString = This is a test.
-;StringSplit, word_array, TestString, %A_Space%, .  ; Omits periods.
-;MsgBox, The 4th word is %word_array4%.
-
 
 
 Fn_HardCodedGlobals()
@@ -1039,8 +985,10 @@ Startup()
 
 Sb_InstalledFiles()
 {
+global
+
 ;FileInstall, Source, Dest [, Overwrite = 1
 FileCreateDir, %A_ScriptDir%\Data\
-
+FileCreateDir, %A_ScriptDir%\Data\Clips
 FileInstall, LHCP-X.png, %A_ScriptDir%\Data\LHCP-X.png, 1
 }
