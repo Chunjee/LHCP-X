@@ -1,15 +1,17 @@
 ;/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\
-;Persistent
+;Description
 ;\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/--\--/
+The_ProjectName = LHCP-X WoW Addon Edition
+The_VersionName = v0.8
+
 
 #NoEnv  ; Recommended for performance and compatibility
 #NoTrayIcon
-#SingleInstance force
+#SingleInstance Force
 ;#include inireadwrite.ahk
 SendMode Input
 SetWorkingDir %A_ScriptDir%
 FileCreateDir, %A_ScriptDir%\Data\
-VERSIONNAME = v0.8
 Fn_InstalledFiles()
 
 
@@ -507,7 +509,7 @@ Fn_BuildGUI()
 	Gui, Add, CheckBox, x333 y10 w100 h20 Checked1 gSwitchOnOff, On
 	Gui, Add, Picture, x2 y10 w290 h56 , %A_ScriptDir%\Data\LHCP-X.png
 	Gui, Add, Text, x82 y90 w160 h20 , by Chunjee - DownloadMob.com
-	Gui, Add, Text, x2 y90, %VERSIONNAME%
+	Gui, Add, Text, x2 y90, %The_VersionName%
 	Gui, Add, Progress, x12 y70 w260 h10 vProgressBar1, 0
 	; Generated using SmartGUI Creator 4.0
 	Gui, Show, x375 y140 h107 w400, LHCP-X
